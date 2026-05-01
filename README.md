@@ -88,6 +88,8 @@ enter_normal = "esc"
 
 See [`examples/vim.toml`](examples/vim.toml) and [`examples/helix.toml`](examples/helix.toml) for complete configurations.
 
+> **Note:** These sample configurations provide a Vim/Helix-like editing experience, but do not fully replicate all keybindings of the original editors. They cover the most commonly used operations for command-line editing.
+
 ## Key format
 
 | Type | Examples |
