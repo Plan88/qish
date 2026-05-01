@@ -1,0 +1,56 @@
+# qish keymap: Helix-style
+# Place this file at ~/.config/qish/keymap.toml
+# Note: In Helix, normal mode movements already create selections,
+# so visual mode is less needed. It's included for explicit selection control.
+
+[normal]
+select_left = "h"
+move_down = "j"
+move_up = "k"
+select_right = "l"
+select_word_forward = "w"
+select_word_back = "b"
+delete_selection = "d"
+change_selection = "c"
+insert_at_cursor = "i"
+insert_after_cursor = "a"
+collapse_selection = ";"
+undo = "u"
+redo = "U"
+hover_info = "K"
+search = "/"
+accept = "enter"
+abort = "ctrl-c"
+clipboard_paste = "ctrl-v"
+yank = "y"
+yank_delete = "d"
+paste_register = "p"
+select_line = "x"
+enter_visual = "v"
+
+[visual]
+extend_left = "h"
+extend_down = "j"
+extend_up = "k"
+extend_right = "l"
+extend_word_forward = "w"
+extend_word_back = "b"
+extend_line_start = "0"
+extend_line_end = "$"
+yank = "y"
+yank_delete = "d"
+enter_normal = "esc"
+collapse_selection = ";"
+abort = "ctrl-c"
+
+[insert]
+complete_start = "tab"
+delete_back = "backspace"
+enter_normal = "esc"
+insert_newline = "enter"
+abort = "ctrl-c"
+clipboard_paste = "ctrl-v"
+delete_word_back = "ctrl-w"
+delete_to_line_start = "ctrl-u"
+undo = "ctrl-z"
+redo = "ctrl-y"
