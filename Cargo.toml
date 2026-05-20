@@ -1,6 +1,6 @@
 [package]
 name = "qish"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Quick Interactive Shell Editor - A TUI command-line editor with fuzzy history search, tab completion, and syntax highlighting"
 license = "MIT"
