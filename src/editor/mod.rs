@@ -28,6 +28,7 @@ pub enum EditorResult {
 pub struct EditorState {
     pub buffer: Buffer,
     pub mode: Mode,
+    pub scroll_offset: usize,
 }
 
 impl EditorState {
@@ -35,6 +36,32 @@ impl EditorState {
         Self {
             buffer: Buffer::new(),
             mode: Mode::Insert,
+            scroll_offset: 0,
+        }
+    }
+
+    /// Updates scroll_offset so the cursor stays within the visible area.
+    pub fn update_scroll(&mut self, visible_width: usize) {
+        if visible_width == 0 {
+            return;
+        }
+
+        let text = &self.buffer.text;
+        let cursor = self.buffer.cursor();
+        let before_cursor = &text[..cursor];
+        let current_line = before_cursor
+            .rfind('\n')
+            .map(|i| &before_cursor[i + 1..])
+            .unwrap_or(before_cursor);
+        let cursor_col = unicode_width::UnicodeWidthStr::width(current_line);
+
+        // Cursor went past right edge
+        if cursor_col >= self.scroll_offset + visible_width {
+            self.scroll_offset = cursor_col - visible_width + 1;
+        }
+        // Cursor went past left edge
+        if cursor_col < self.scroll_offset {
+            self.scroll_offset = cursor_col;
         }
     }
 

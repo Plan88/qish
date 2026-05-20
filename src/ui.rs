@@ -3,7 +3,7 @@ use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Widget};
-use unicode_width::UnicodeWidthStr;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::app::SearchState;
 use crate::completion::CompletionState;
@@ -109,6 +109,7 @@ impl EditorWidget<'_> {
 
         let text = &self.state.buffer.text;
         let text_lines: Vec<&str> = text.split('\n').collect();
+        let scroll_offset = self.state.scroll_offset;
 
         for (i, text_line) in text_lines.iter().enumerate() {
             let y = area.y + i as u16;
@@ -116,27 +117,24 @@ impl EditorWidget<'_> {
                 break;
             }
 
-            if i == 0 {
-                let separator = Span::raw(" ");
-                let mut spans = vec![mode_label.clone(), separator];
-                let line_start = 0;
-                let line_end = text_line.len();
-                spans.extend(self.build_spans_for_range(text, line_start, line_end));
-                let line = Line::from(spans);
-                line.render(Rect::new(area.x, y, area.width, 1), buf);
+            let line_start = if i == 0 {
+                0
             } else {
-                let line_start = text_lines[..i]
-                    .iter()
-                    .map(|l| l.len() + 1) // +1 for '\n'
-                    .sum::<usize>();
-                let line_end = line_start + text_line.len();
-                // Pad continuation lines to align with first line's text start
-                let padding = Span::raw(" ".repeat(9)); // same width as mode label + separator
-                let mut spans = vec![padding];
-                spans.extend(self.build_spans_for_range(text, line_start, line_end));
-                let line = Line::from(spans);
-                line.render(Rect::new(area.x, y, area.width, 1), buf);
-            }
+                text_lines[..i].iter().map(|l| l.len() + 1).sum::<usize>()
+            };
+            let line_end = line_start + text_line.len();
+
+            // Apply horizontal scroll: trim characters from the left
+            let scrolled_start = byte_offset_at_width(text_line, scroll_offset) + line_start;
+
+            let mut spans = if i == 0 {
+                vec![mode_label.clone(), Span::raw(" ")]
+            } else {
+                vec![Span::raw(" ".repeat(9))]
+            };
+            spans.extend(self.build_spans_for_range(text, scrolled_start, line_end));
+            let line = Line::from(spans);
+            line.render(Rect::new(area.x, y, area.width, 1), buf);
         }
     }
 
@@ -337,7 +335,7 @@ impl EditorWidget<'_> {
 
     /// Returns (col, row) for the cursor position in the terminal.
     pub fn cursor_position(&self, area: Rect) -> (u16, u16) {
-        let mode_label_width: u16 = 9; // " XXXXXX " + " "
+        let mode_label_width: u16 = 9;
         if self.search.is_some() {
             let query_width = self.search.map(|s| s.query.width() as u16).unwrap_or(0);
             (area.x + mode_label_width + query_width, area.y)
@@ -346,16 +344,27 @@ impl EditorWidget<'_> {
             let cursor = self.state.buffer.cursor();
             let before_cursor = &text[..cursor];
 
-            // Find which line the cursor is on and the display width within that line
             let row = before_cursor.matches('\n').count() as u16;
             let current_line = before_cursor
                 .rfind('\n')
                 .map(|i| &before_cursor[i + 1..])
                 .unwrap_or(before_cursor);
-            let col = current_line.width() as u16;
+            let cursor_col = current_line.width();
+            let col = cursor_col.saturating_sub(self.state.scroll_offset) as u16;
 
-            // All lines have the same offset (mode label width) to stay aligned
             (area.x + mode_label_width + col, area.y + row)
         }
     }
+}
+
+/// Returns the byte offset in `s` corresponding to skipping `skip_width` display columns.
+fn byte_offset_at_width(s: &str, skip_width: usize) -> usize {
+    let mut width = 0;
+    for (i, ch) in s.char_indices() {
+        if width >= skip_width {
+            return i;
+        }
+        width += ch.width().unwrap_or(0);
+    }
+    s.len()
 }

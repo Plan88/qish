@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crossterm::cursor::SetCursorStyle;
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyModifiers};
 use crossterm::execute;
 use ratatui::DefaultTerminal;
 
@@ -248,6 +248,12 @@ impl App {
                 .highlight(&self.editor.buffer.text, &path_bins);
             let preview_text = preview::expand_preview(&self.editor.buffer.text);
 
+            // Update horizontal scroll before drawing
+            let term_width = terminal.size().map(|s| s.width).unwrap_or(80);
+            let mode_label_width = 9u16;
+            let visible_width = term_width.saturating_sub(mode_label_width) as usize;
+            self.editor.update_scroll(visible_width);
+
             terminal.draw(|frame| {
                 let widget = EditorWidget {
                     state: &self.editor,
@@ -284,15 +290,25 @@ impl App {
                 continue;
             }
 
+            let text_editing_key = matches!(
+                key.code,
+                KeyCode::Char(_) | KeyCode::Backspace | KeyCode::Delete
+            ) && !key.modifiers.contains(KeyModifiers::CONTROL)
+                && !key.modifiers.contains(KeyModifiers::ALT);
+
             if let Some(action) = self.keymap.resolve(&self.editor.mode, key) {
                 match self.editor.apply(action) {
                     EditorResult::Continue => {
                         if matches!(self.editor.mode, Mode::Search) && self.search.is_none() {
                             self.enter_search();
                         }
-                        // Auto-complete in insert mode: update or start completion
-                        if matches!(self.editor.mode, Mode::Insert) {
-                            if self.editor.buffer.text.is_empty() {
+                        // Auto-complete in insert mode only after text editing keys
+                        if matches!(self.editor.mode, Mode::Insert) && text_editing_key {
+                            let (_, prefix) = completion::extract_prefix(
+                                &self.editor.buffer.text,
+                                self.editor.buffer.cursor(),
+                            );
+                            if prefix.is_empty() {
                                 self.completion = None;
                             } else if self.completion.is_some() {
                                 self.update_completion();
@@ -373,7 +389,8 @@ impl App {
                             && let Some(cmd) = s.confirm()
                         {
                             self.editor.buffer.text = cmd;
-                            self.editor.buffer.move_line_end();
+                            self.editor.buffer.move_line_start();
+                            self.editor.scroll_offset = 0;
                         }
                         self.exit_search(Mode::Normal);
                     }
